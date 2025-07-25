@@ -30,25 +30,37 @@ ChatDB是一个智能的文本转SQL系统，允许用户使用自然语言查�
    cd chatdb
    ```
 
-2. 在根目录创建 `.env` 文件并配置OpenAI API密钥:
-   ```
-   OPENAI_API_KEY=your_openai_api_key_here
+2. 在根目录创建 `.env` 文件并配置必要参数:
+   ```bash
+   # 复制示例配置文件
+   cp .env.example .env
+
+   # 编辑配置文件，填入实际值
+   # SERVER_IP=your_vultr_server_ip
+   # OPENAI_API_KEY=your_openai_api_key_here
    ```
 
-3. 使用Docker Compose启动服务:
-   ```
+3. 部署应用 (推荐使用部署脚本):
+   ```bash
+   # 使用自动化部署脚本
+   ./scripts/deploy.sh
+
+   # 或手动部署
    docker-compose up -d
-   ```
-
-4. 初始化数据库 (仅首次运行):
-   ```
+   sleep 60
    docker-compose exec backend python init_db.py
    ```
 
+4. 验证部署:
+   ```bash
+   # 运行健康检查
+   ./scripts/health_check.sh
+   ```
+
 5. 访问应用程序:
-   - 前端界面: http://localhost:3000
-   - 后端API文档: http://localhost:8000/docs
-   - Neo4j浏览器: http://localhost:7474 (用户名: neo4j, 密码: password)
+   - 前端界面: http://your_server_ip:3000
+   - 后端API文档: http://your_server_ip:8000/docs
+   - 管理界面通过SSH隧道访问 (安全考虑)
 
 ## 使用指南
 
@@ -105,4 +117,57 @@ cd frontend
 npm install
 npm start
 ```
+
+## 生产环境部署 (Vultr)
+
+### 服务器要求
+- **最低配置**: 4GB RAM, 2 CPU, 80GB SSD
+- **推荐配置**: 8GB RAM, 4 CPU, 160GB SSD
+- **操作系统**: Ubuntu 22.04 LTS
+
+### 部署步骤
+
+1. **服务器初始化**:
+   ```bash
+   # 更新系统
+   sudo apt update && sudo apt upgrade -y
+
+   # 安装Docker
+   curl -fsSL https://get.docker.com -o get-docker.sh
+   sudo sh get-docker.sh
+
+   # 安装Docker Compose
+   sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+   sudo chmod +x /usr/local/bin/docker-compose
+   ```
+
+2. **配置防火墙**:
+   ```bash
+   sudo ufw enable
+   sudo ufw allow ssh
+   sudo ufw allow 3000
+   sudo ufw allow 8000
+   ```
+
+3. **部署应用**:
+   ```bash
+   git clone <your-repo-url>
+   cd chatdb
+   cp .env.example .env
+   # 编辑.env文件，填入服务器IP和API密钥
+   ./scripts/deploy.sh
+   ```
+
+### 访问应用
+
+部署完成后，可以通过以下地址访问：
+- **前端界面**: http://your_server_ip:3000
+- **后端API文档**: http://your_server_ip:8000/docs
+
+### 可选优化
+
+如需要域名访问或HTTPS，可以考虑：
+- 使用Caddy服务器（配置更简单）
+- 使用Vultr负载均衡器
+- 将前端端口改为80端口（需要root权限）
 

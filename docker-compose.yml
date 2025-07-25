@@ -9,7 +9,7 @@ services:
       MYSQL_ROOT_PASSWORD: password
       MYSQL_DATABASE: chatdb
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
@@ -21,8 +21,8 @@ services:
     environment:
       NEO4J_AUTH: neo4j/password
     ports:
-      - "7474:7474"  # HTTP
-      - "7687:7687"  # Bolt
+      - "127.0.0.1:7474:7474"  # HTTP
+      - "127.0.0.1:7687:7687"  # Bolt
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
@@ -47,8 +47,8 @@ services:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     volumes:
       - minio_data:/data
     command: minio server /data --console-address ":9001"
@@ -61,8 +61,8 @@ services:
       ETCD_ENDPOINTS: etcd:2379
       MINIO_ADDRESS: minio:9000
     ports:
-      - "19530:19530"  # Milvus服务端口
-      - "9091:9091"    # Milvus Web UI端口
+      - "127.0.0.1:19530:19530"  # Milvus服务端口
+      - "127.0.0.1:9091:9091"    # Milvus Web UI端口
     volumes:
       - milvus_data:/var/lib/milvus
     depends_on:
@@ -87,6 +87,8 @@ services:
       - NEO4J_USER=neo4j
       - NEO4J_PASSWORD=password
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - MILVUS_HOST=milvus
+      - MILVUS_PORT=19530
     ports:
       - "8000:8000"
     volumes:
@@ -99,7 +101,7 @@ services:
     depends_on:
       - backend
     environment:
-      - REACT_APP_API_URL=http://localhost:8000/api
+      - REACT_APP_API_URL=http://${SERVER_IP:-localhost}:8000/api
     ports:
       - "3000:3000"
     volumes:
