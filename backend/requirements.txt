@@ -14,7 +14,7 @@ python-multipart>=0.0.20
 sqlparse>=0.5.3
 autogen-agentchat
 autogen-ext[openai]
-autogen-core
+autogen_core
 pandas>=2.2.3
 websockets>=15.0.1
 sse-starlette>=1.6.5
