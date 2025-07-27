@@ -118,56 +118,336 @@ npm install
 npm start
 ```
 
-## 生产环境部署 (Vultr)
+## Vultr服务器手动部署指南
 
-### 服务器要求
+### 🖥️ 服务器要求
 - **最低配置**: 4GB RAM, 2 CPU, 80GB SSD
 - **推荐配置**: 8GB RAM, 4 CPU, 160GB SSD
 - **操作系统**: Ubuntu 22.04 LTS
 
-### 部署步骤
+### 📋 部署前准备
 
-1. **服务器初始化**:
-   ```bash
-   # 更新系统
-   sudo apt update && sudo apt upgrade -y
+#### 1. 服务器初始化
+```bash
+# 连接服务器
+ssh root@your_vultr_server_ip
 
-   # 安装Docker
-   curl -fsSL https://get.docker.com -o get-docker.sh
-   sudo sh get-docker.sh
+# 更新系统
+sudo apt update && sudo apt upgrade -y
 
-   # 安装Docker Compose
-   sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-   sudo chmod +x /usr/local/bin/docker-compose
-   ```
+# 安装基础工具
+sudo apt install -y curl wget git vim htop unzip
 
-2. **配置防火墙**:
-   ```bash
-   sudo ufw enable
-   sudo ufw allow ssh
-   sudo ufw allow 3000
-   sudo ufw allow 8000
-   ```
+# 创建非root用户（推荐）
+adduser chatdb
+usermod -aG sudo chatdb
+su - chatdb
+```
 
-3. **部署应用**:
-   ```bash
-   git clone <your-repo-url>
-   cd chatdb
-   cp .env.example .env
-   # 编辑.env文件，填入服务器IP和API密钥
-   ./scripts/deploy.sh
-   ```
+#### 2. 安装Docker环境
+```bash
+# 安装Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
 
-### 访问应用
+# 将用户添加到docker组
+sudo usermod -aG docker $USER
 
-部署完成后，可以通过以下地址访问：
-- **前端界面**: http://your_server_ip:3000
-- **后端API文档**: http://your_server_ip:8000/docs
+# 安装Docker Compose
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
 
-### 可选优化
+# 重新登录以应用组权限
+exit
+ssh chatdb@your_vultr_server_ip
+```
 
-如需要域名访问或HTTPS，可以考虑：
-- 使用Caddy服务器（配置更简单）
-- 使用Vultr负载均衡器
-- 将前端端口改为80端口（需要root权限）
+#### 3. 验证安装
+```bash
+# 验证Docker
+docker --version
+docker run hello-world
+
+# 验证Docker Compose
+docker-compose --version
+```
+
+#### 4. 配置防火墙
+```bash
+# 启用防火墙
+sudo ufw enable
+
+# 允许必要端口
+sudo ufw allow ssh
+sudo ufw allow 3000/tcp
+sudo ufw allow 8000/tcp
+
+# 检查状态
+sudo ufw status
+```
+
+### 🚀 应用部署步骤
+
+#### 1. 获取项目代码
+```bash
+# 克隆项目（替换为实际仓库地址）
+git clone https://github.com/your-username/chatdb.git
+cd chatdb
+
+# 或者上传项目文件
+# scp -r ./chatdb chatdb@your_vultr_server_ip:/home/chatdb/
+```
+
+#### 2. 配置环境变量
+
+**配置Docker Compose环境变量**：
+```bash
+# 复制Docker Compose配置文件
+cp .env.example .env
+
+# 编辑配置文件，设置服务器IP
+vim .env
+```
+
+**必须配置的内容**：
+```bash
+# 设置服务器IP地址（用于前端API配置）
+SERVER_IP=your_vultr_server_ip
+```
+
+**配置后端应用环境变量**：
+```bash
+# 复制后端配置文件
+cp backend/.env.example backend/.env
+
+# 编辑后端配置文件
+vim backend/.env
+```
+
+**必须配置的内容**：
+```bash
+# 设置OpenAI API密钥
+OPENAI_API_KEY=your_actual_openai_api_key
+
+# 如使用DeepSeek等其他服务，修改：
+# OPENAI_API_BASE=https://api.deepseek.com/v1
+# LLM_MODEL=deepseek-chat
+
+# 其他配置项通常使用默认值即可
+```
+
+#### 3. 检查配置文件
+```bash
+# 验证必要文件存在
+ls -la .env docker-compose.yml backend/.env
+
+# 检查Docker Compose配置（确保SERVER_IP已设置）
+cat .env
+
+# 检查后端配置（确保API密钥已设置）
+cat backend/.env | grep OPENAI_API_KEY
+```
+
+#### 4. 停止现有服务（如果有）
+```bash
+# 停止可能运行的服务
+docker-compose down || true
+
+# 清理旧容器和镜像（可选）
+docker system prune -f
+```
+
+#### 5. 构建Docker镜像
+```bash
+# 构建所有服务的镜像
+docker-compose build --no-cache
+
+# 检查构建结果
+docker images | grep chatdb
+```
+
+#### 6. 启动服务
+```bash
+# 启动所有服务
+docker-compose up -d
+
+# 检查服务状态
+docker-compose ps
+```
+
+#### 7. 等待服务启动
+```bash
+# 等待服务完全启动（重要！）
+echo "等待服务启动..."
+sleep 60
+
+# 检查容器日志
+docker-compose logs --tail=20
+```
+
+#### 8. 初始化数据库
+```bash
+# 初始化数据库结构
+docker-compose exec backend python init_db.py
+
+# 验证数据库连接
+docker-compose exec mysql mysql -u root -ppassword -e "SHOW DATABASES;"
+```
+
+### ✅ 部署验证
+
+#### 1. 检查服务状态
+```bash
+# 查看所有容器状态
+docker-compose ps
+
+# 查看服务日志
+docker-compose logs frontend
+docker-compose logs backend
+docker-compose logs mysql
+docker-compose logs neo4j
+docker-compose logs milvus
+```
+
+#### 2. 测试网络连接
+```bash
+# 测试前端
+curl -I http://localhost:3000
+
+# 测试后端API
+curl -I http://localhost:8000/docs
+
+# 从外网测试（替换为实际IP）
+curl -I http://your_vultr_server_ip:3000
+curl -I http://your_vultr_server_ip:8000/docs
+```
+
+#### 3. 测试数据库连接
+```bash
+# 测试MySQL
+docker-compose exec mysql mysql -u root -ppassword -e "SELECT 1;"
+
+# 测试Neo4j
+docker-compose exec neo4j cypher-shell -u neo4j -p password "RETURN 1;"
+
+# 测试Milvus
+curl -s http://localhost:9091/health
+```
+
+### 📋 配置文件说明
+
+本项目使用两个配置文件：
+
+1. **根目录 `.env`** - Docker Compose配置
+   - 用途：Docker Compose的变量替换
+   - 主要配置：`SERVER_IP`（前端API地址配置）
+   - 示例：`.env.example`
+
+2. **backend/.env** - 后端应用配置
+   - 用途：后端Python应用直接读取
+   - 主要配置：OpenAI API密钥、数据库连接、模型参数等
+   - 示例：`backend/.env.example`
+
+**重要**：两个配置文件都必须正确配置，缺一不可。
+
+### 🌐 访问应用
+
+部署成功后，通过以下地址访问：
+- **前端界面**: `http://your_vultr_server_ip:3000`
+- **后端API文档**: `http://your_vultr_server_ip:8000/docs`
+
+### 🚨 故障排查
+
+#### 常见问题及解决方案
+
+1. **容器启动失败**
+```bash
+# 查看详细日志
+docker-compose logs [service_name]
+
+# 重启特定服务
+docker-compose restart [service_name]
+
+# 重新构建并启动
+docker-compose down
+docker-compose build --no-cache [service_name]
+docker-compose up -d
+```
+
+2. **端口无法访问**
+```bash
+# 检查端口占用
+sudo netstat -tlnp | grep :3000
+sudo netstat -tlnp | grep :8000
+
+# 检查防火墙
+sudo ufw status
+
+# 检查容器端口映射
+docker-compose ps
+```
+
+3. **数据库连接失败**
+```bash
+# 检查数据库容器状态
+docker-compose ps mysql neo4j
+
+# 重启数据库服务
+docker-compose restart mysql neo4j
+
+# 检查数据库日志
+docker-compose logs mysql
+docker-compose logs neo4j
+```
+
+4. **API密钥问题**
+```bash
+# 检查后端配置文件
+cat backend/.env | grep OPENAI_API_KEY
+
+# 重新设置API密钥
+vim backend/.env
+docker-compose restart backend
+
+# 验证配置是否生效
+docker-compose exec backend python -c "
+from app.core.config import settings
+print('API Key configured:', bool(settings.OPENAI_API_KEY))
+"
+```
+
+### 🔧 维护操作
+
+#### 更新应用
+```bash
+# 拉取最新代码
+git pull origin main
+
+# 重新构建和部署
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
+
+# 验证更新
+docker-compose ps
+```
+
+#### 备份数据
+```bash
+# 备份MySQL数据
+docker-compose exec mysql mysqldump -u root -ppassword chatdb > backup_$(date +%Y%m%d).sql
+
+# 备份Neo4j数据
+docker-compose exec neo4j neo4j-admin dump --database=neo4j --to=/data/backup_$(date +%Y%m%d).dump
+```
+
+#### 查看资源使用
+```bash
+# 查看容器资源使用
+docker stats
+
+# 查看系统资源
+htop
+df -h
+```
 
