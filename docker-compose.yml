@@ -68,6 +68,7 @@ services:
     depends_on:
       - etcd
       - minio
+    command: ["milvus", "run", "standalone"]
 
   backend:
     build: ./backend

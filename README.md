@@ -12,9 +12,10 @@ ChatDB是一个智能的文本转SQL系统，允许用户使用自然语言查�
 ## 系统架构
 
 - **前端**: React + Ant Design + React Flow 可视化
-- **后端**: Python FastAPI
+- **后端**: Python 3.10 + FastAPI
 - **元数据存储**: MySQL
 - **模式关系存储**: Neo4j
+- **向量数据库**: Milvus
 - **LLM集成**: OpenAI GPT-4 (或其他LLM服务)
 
 ## 环境要求
