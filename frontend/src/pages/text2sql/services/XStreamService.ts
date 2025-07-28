@@ -69,7 +69,7 @@ export class XStreamService {
   private currentSessionId: string | null = null;
   private eventSource: EventSource | null = null;
 
-  constructor(baseUrl: string = 'http://backend:8000/api/text2sql-sse/stream') {
+  constructor(baseUrl: string = 'http://localhost:8000/api/text2sql-sse/stream') {
     this.baseUrl = baseUrl;
   }
 
@@ -185,7 +185,7 @@ export class XStreamService {
     type: 'approve' | 'feedback' | 'cancel' = 'feedback'
   ): Promise<void> {
     try {
-      const feedbackUrl = `http://backend:8000/api/text2sql-sse/feedback/${sessionId}`;
+      const feedbackUrl = `http://localhost:8000/api/text2sql-sse/feedback/${sessionId}`;
       const response = await fetch(feedbackUrl, {
         method: 'POST',
         headers: {
