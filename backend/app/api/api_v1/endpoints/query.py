@@ -11,7 +11,7 @@ router = APIRouter()
 
 
 @router.post("/", response_model=schemas.QueryResponse)
-def execute_query(
+async def execute_query(
     *,
     db: Session = Depends(deps.get_db),
     query_request: schemas.QueryRequest,
@@ -25,7 +25,7 @@ def execute_query(
     
     try:
         # Process the query
-        result = process_text2sql_query(
+        result = await process_text2sql_query(
             db=db,
             connection=connection,
             natural_language_query=query_request.natural_language_query

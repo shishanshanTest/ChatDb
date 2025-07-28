@@ -90,13 +90,13 @@ def call_llm_api(prompt: str) -> str:
         raise Exception(f"调用LLM API时出错: {str(e)}")
 
 
-def process_text2sql_query(db: Session, connection: DBConnection, natural_language_query: str) -> QueryResponse:
+async def process_text2sql_query(db: Session, connection: DBConnection, natural_language_query: str) -> QueryResponse:
     """
     处理自然语言查询并转换为SQL
     """
     try:
         # 1. 检索相关表结构
-        schema_context = retrieve_relevant_schema(db, connection.id, natural_language_query)
+        schema_context = await retrieve_relevant_schema(db, connection.id, natural_language_query)
 
         # 如果没有找到相关表结构，返回错误
         if not schema_context["tables"]:
