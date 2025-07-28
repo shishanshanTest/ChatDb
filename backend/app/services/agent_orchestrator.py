@@ -48,16 +48,16 @@ class AgentOrchestrator:
 
         return connection_info
 
-    def _setup_database_connection(self, connection_id: Optional[int] = None) -> Optional[DBAccess]:
+    def _setup_database_connection(self, connection_id: Optional[int] = None) -> DBAccess:
         """设置数据库连接
 
         Args:
             connection_id: 数据库连接ID，可选
 
         Returns:
-            Optional[DBAccess]: 数据库访问对象
+            DBAccess: 数据库访问对象（确保不为None）
         """
-        db_access = self.db_access  # 默认使用默认数据库访问对象
+        db_access = None
 
         if connection_id:
             # 获取连接信息和数据库类型
@@ -88,11 +88,16 @@ class AgentOrchestrator:
                     elif connection_info.db_type.lower() == "sqlite":
                         db_access.connect_to_sqlite(connection_info.database_name)
                     else:
-                        print(f"不支持的数据库类型: {connection_info.db_type}，使用默认连接")
-                        db_access = self.db_access
+                        print(f"不支持的数据库类型: {connection_info.db_type}，创建默认连接")
+                        db_access = DBAccess()  # 创建默认连接而不是使用None
                 except Exception as e:
-                    print(f"创建数据库连接时出错: {str(e)}，使用默认连接")
-                    db_access = self.db_access
+                    print(f"创建数据库连接时出错: {str(e)}，创建默认连接")
+                    db_access = DBAccess()  # 创建默认连接而不是使用None
+
+        # 如果没有connection_id或创建失败，确保返回一个有效的DBAccess对象
+        if db_access is None:
+            print("创建默认数据库连接")
+            db_access = DBAccess()
 
         return db_access
 
