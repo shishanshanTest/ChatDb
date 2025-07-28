@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 
 // API基础URL
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://backend:8000/api';
 
 // WebSocket连接状态枚举
 export enum WebSocketConnectionState {

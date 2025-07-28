@@ -3,7 +3,7 @@ import axios from 'axios';
 
 // 创建API实例
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api',
+  baseURL: process.env.REACT_APP_API_URL || 'http://backend:8000/api',
 });
 
 // 获取数据库连接列表
@@ -36,7 +36,7 @@ export interface FinalVisualizationData {
   config: any;
 }
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://backend:8000/api';
 
 // SSE连接状态枚举
 export enum SSEConnectionState {

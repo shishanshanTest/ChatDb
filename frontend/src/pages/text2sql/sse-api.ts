@@ -2,7 +2,7 @@ import { Text2SQLResponse } from './types';
 import axios from 'axios';
 
 // API基础URL
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://backend:8000/api';
 
 // 流式响应消息
 export interface StreamResponseMessage {
