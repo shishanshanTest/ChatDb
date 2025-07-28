@@ -89,15 +89,32 @@ class AgentOrchestrator:
                         db_access.connect_to_sqlite(connection_info.database_name)
                     else:
                         print(f"不支持的数据库类型: {connection_info.db_type}，创建默认连接")
-                        db_access = DBAccess()  # 创建默认连接而不是使用None
+                        db_access = self._create_default_db_access()
                 except Exception as e:
                     print(f"创建数据库连接时出错: {str(e)}，创建默认连接")
-                    db_access = DBAccess()  # 创建默认连接而不是使用None
+                    db_access = self._create_default_db_access()
 
         # 如果没有connection_id或创建失败，确保返回一个有效的DBAccess对象
         if db_access is None:
             print("创建默认数据库连接")
-            db_access = DBAccess()
+            db_access = self._create_default_db_access()
+
+        return db_access
+
+    def _create_default_db_access(self) -> DBAccess:
+        """创建一个有效的默认数据库连接对象
+
+        Returns:
+            DBAccess: 配置了默认run_sql方法的数据库访问对象
+        """
+        db_access = DBAccess()
+
+        # 设置一个默认的run_sql方法，返回错误信息而不是崩溃
+        def default_run_sql(sql: str):
+            raise Exception("数据库连接未正确配置。请检查数据库连接设置。")
+
+        db_access.run_sql = default_run_sql
+        db_access.run_sql_is_set = True
 
         return db_access
 

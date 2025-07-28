@@ -7,6 +7,9 @@ from typing import Optional
 from autogen_core import message_handler, MessageContext, TopicId, type_subscription
 
 from app.db.dbaccess import DBAccess
+from app.services.db_service import execute_query
+from app.db.session import SessionLocal
+from app import crud
 from app.schemas.text2sql import SqlExplanationMessage, SqlResultMessage
 from .base import BaseAgent
 from .types import AgentTypes, AGENT_NAMES, TopicTypes
@@ -22,7 +25,7 @@ class SqlExecutorAgent(BaseAgent):
         Args:
             model_client_instance: 模型客户端实例
             db_type: 数据库类型
-            db_access: 数据库访问对象，如果为None则使用全局dbAccess
+            db_access: 数据库访问对象（已弃用，保留参数以兼容现有代码）
         """
         super().__init__(
             agent_id="sql_executor_agent",
@@ -30,7 +33,7 @@ class SqlExecutorAgent(BaseAgent):
             model_client_instance=model_client_instance,
             db_type=db_type
         )
-        self.db_access = db_access
+        # 不再使用 db_access，直接使用 db_service.execute_query
 
     def _clean_sql(self, sql: str) -> str:
         """清理SQL语句，移除可能的标记
@@ -57,15 +60,27 @@ class SqlExecutorAgent(BaseAgent):
             # 清理SQL语句
             cleaned_sql = self._clean_sql(sql)
 
-            # 执行SQL查询
-            results = self.db_access.run_sql(cleaned_sql)
+            # 获取数据库连接信息
+            if not connection_id:
+                return [], "缺少数据库连接ID"
 
-            # 检查结果
-            if results is None or len(results) == 0:
-                return [], None
-            else:
-                # 转换为字典列表
-                return results.to_dict("records"), None
+            db = SessionLocal()
+            try:
+                connection = crud.db_connection.get(db=db, id=connection_id)
+                if not connection:
+                    return [], f"数据库连接ID {connection_id} 不存在"
+
+                # 使用 db_service.execute_query 执行SQL
+                results = execute_query(connection, cleaned_sql)
+
+                # 检查结果
+                if not results:
+                    return [], None
+                else:
+                    return results, None
+
+            finally:
+                db.close()
 
         except Exception as e:
             error_msg = f"SQL执行错误: {str(e)}"
