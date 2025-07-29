@@ -240,6 +240,34 @@ def discover_mysql_schema(inspector) -> List[Dict[str, Any]]:
         print(f"Warning: Could not get table comments: {str(comment_error)}")
         table_comments = {}
 
+    # 获取列注释信息
+    column_comments = {}
+    try:
+        # 使用 inspector 的 engine 执行查询获取列注释
+        with inspector.engine.connect() as conn:
+            # 获取数据库名称
+            database_name = inspector.engine.url.database
+            column_comment_query = text("""
+                SELECT
+                    TABLE_NAME,
+                    COLUMN_NAME,
+                    COALESCE(COLUMN_COMMENT, '') as COLUMN_COMMENT
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = :database_name
+            """)
+            result = conn.execute(column_comment_query, {"database_name": database_name})
+            for row in result:
+                table_name = row[0]
+                column_name = row[1]
+                column_comment = row[2]
+                if table_name not in column_comments:
+                    column_comments[table_name] = {}
+                column_comments[table_name][column_name] = column_comment
+        print(f"Retrieved column comments for {len(column_comments)} tables")
+    except Exception as column_comment_error:
+        print(f"Warning: Could not get column comments: {str(column_comment_error)}")
+        column_comments = {}
+
     for table_name in tables:
         print(f"Processing table/view: {table_name}")
         # 获取表注释，如果没有则使用默认格式
@@ -257,8 +285,15 @@ def discover_mysql_schema(inspector) -> List[Dict[str, Any]]:
             print(f"Found {len(columns)} columns in {table_name}")
 
             for column in columns:
+                column_name = column["name"]
+                # 获取列注释，如果没有则使用空字符串
+                column_comment = ""
+                if table_name in column_comments and column_name in column_comments[table_name]:
+                    column_comment = column_comments[table_name][column_name].strip()
+
                 column_info = {
-                    "column_name": column["name"],
+                    "column_name": column_name,
+                    "column_comment": column_comment,  # 添加列注释字段
                     "data_type": str(column["type"]),
                     "is_primary_key": False,
                     "is_foreign_key": False,
@@ -572,6 +607,10 @@ def save_discovered_schema(db: Session, connection_id: int, schema_info: List[Di
         for column_info in table_info["columns"]:
             column_name = column_info["column_name"]
 
+            # 获取列注释，优先使用实际注释，如果为空则使用默认格式
+            column_comment = column_info.get("column_comment", "").strip()
+            column_description = column_comment if column_comment else f"Auto-discovered column: {column_name}"
+
             # Check if column already exists
             existing_column = crud.schema_column.get_by_name_and_table(
                 db=db, column_name=column_name, table_id=table_obj.id
@@ -581,6 +620,7 @@ def save_discovered_schema(db: Session, connection_id: int, schema_info: List[Di
                 print(f"Column {column_name} already exists, updating...")
                 column_update = schemas.SchemaColumnUpdate(
                     data_type=column_info["data_type"],
+                    description=column_description,  # 更新列描述
                     is_primary_key=column_info["is_primary_key"],
                     is_foreign_key=column_info["is_foreign_key"],
                     is_unique=column_info.get("is_unique", False)  # 添加唯一标记
@@ -594,7 +634,7 @@ def save_discovered_schema(db: Session, connection_id: int, schema_info: List[Di
                     table_id=table_obj.id,
                     column_name=column_name,
                     data_type=column_info["data_type"],
-                    description=f"Auto-discovered column: {column_name}",
+                    description=column_description,  # 使用实际列注释
                     is_primary_key=column_info["is_primary_key"],
                     is_foreign_key=column_info["is_foreign_key"],
                     is_unique=column_info.get("is_unique", False)  # 添加唯一标记
