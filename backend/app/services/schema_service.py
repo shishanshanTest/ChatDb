@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Optional, Tuple
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import Session
 from neo4j import GraphDatabase
 
@@ -220,10 +220,33 @@ def discover_mysql_schema(inspector) -> List[Dict[str, Any]]:
 
     print(f"Found {len(tables)} tables/views: {', '.join(tables)}")
 
+    # 获取表注释信息
+    table_comments = {}
+    try:
+        # 使用 inspector 的 engine 执行查询获取表注释
+        with inspector.engine.connect() as conn:
+            # 获取数据库名称
+            database_name = inspector.engine.url.database
+            comment_query = text("""
+                SELECT TABLE_NAME, COALESCE(TABLE_COMMENT, '') as TABLE_COMMENT
+                FROM INFORMATION_SCHEMA.TABLES
+                WHERE TABLE_SCHEMA = :database_name
+            """)
+            result = conn.execute(comment_query, {"database_name": database_name})
+            for row in result:
+                table_comments[row[0]] = row[1]
+        print(f"Retrieved comments for {len(table_comments)} tables")
+    except Exception as comment_error:
+        print(f"Warning: Could not get table comments: {str(comment_error)}")
+        table_comments = {}
+
     for table_name in tables:
         print(f"Processing table/view: {table_name}")
+        # 获取表注释，如果没有则使用默认格式
+        table_comment = table_comments.get(table_name, "").strip()
         table_info = {
             "table_name": table_name,
+            "table_comment": table_comment,  # 添加表注释字段
             "columns": [],
             "is_view": table_name in views
         }
@@ -518,15 +541,21 @@ def save_discovered_schema(db: Session, connection_id: int, schema_info: List[Di
             db=db, table_name=table_name, connection_id=connection_id
         )
 
+        # 获取表注释，优先使用实际注释，如果为空则使用默认格式
+        table_comment = table_info.get("table_comment", "").strip()
+        description = table_comment if table_comment else f"Auto-discovered table: {table_name}"
+
         if existing_table:
             print(f"Table {table_name} already exists, updating...")
-            table_obj = existing_table
+            # 更新现有表的描述
+            table_update = schemas.SchemaTableUpdate(description=description)
+            table_obj = crud.schema_table.update(db=db, db_obj=existing_table, obj_in=table_update)
         else:
             print(f"Creating new table: {table_name}")
             table_create = schemas.SchemaTableCreate(
                 connection_id=connection_id,
                 table_name=table_name,
-                description=f"Auto-discovered table: {table_name}",
+                description=description,
                 ui_metadata={"position": {"x": 0, "y": 0}}  # Default position
             )
             table_obj = crud.schema_table.create(db=db, obj_in=table_create)
